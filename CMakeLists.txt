@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8)
-project(break_MD5)
+project(Break_MD5)
 
 set(CMAKE_C_FLAGS "-Wextra -Wall -Werror")
 
