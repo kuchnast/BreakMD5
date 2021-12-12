@@ -10,7 +10,7 @@
 
 #define NUM_HASH 1000
 
-char md5_hash[NUM_HASH][32];
+unsigned char md5_hash[NUM_HASH][16];
 char *passw[NUM_HASH];
 char **dict;
 
