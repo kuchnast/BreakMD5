@@ -1,15 +1,18 @@
-cmake_minimum_required(VERSION 2.8)
-project(Break_MD5)
+cmake_minimum_required(VERSION 3.6)
 
-set(CMAKE_C_FLAGS "-Wextra -Wall -Werror")
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-include_directories()
 
-set(LIBS gtest gtest_main)
+project(BreakMD5)
 
-add_executable(MD5_test MD5_test.c)
-target_link_libraries(MD5_test ${LIBS})
+include_directories(inc/)
 
-find_package(OpenSSL REQUIRED)
-target_link_libraries(MD5_test OpenSSL::SSL)
+set(SOURCES "src/main.cpp")
 
+set(MD5_SOURCES src/md5.cpp)
+add_library(MD5 ${MD5_SOURCES})
+
+add_executable(${PROJECT_NAME} ${SOURCES})
+target_compile_options(${PROJECT_NAME} PUBLIC -Wall -Werror -Wpedantic -Wextra -Wno-unused-parameter)
+target_link_libraries(${PROJECT_NAME} MD5)
