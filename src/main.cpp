@@ -67,15 +67,15 @@ int main(int argc, char **argv)
     std::thread consumer(&BreakMD5::Consumer, &app);
     signal(1, sendSIGHUP);
 
-    while(app.IsFinished())
-    {
+    //while(app.IsFinished())
+    //{
         for (auto &t : producer_threads)
         {
             if(t.joinable())
                 t.join();
         }
         consumer.join();
-    }
+    //}
 
     return 0;
 }
