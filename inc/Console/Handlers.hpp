@@ -9,6 +9,11 @@
 #include <string>
 #include <array>
 #include <vector>
+#include <chrono>
+#include <thread>
+
+BreakMD5 app;
+size_t num_of_threads = 0;
 
 struct Quitter : CommandHandler
 {
@@ -27,40 +32,29 @@ public:
     }
 };
 
-struct Printer : CommandHandler
-{
-public:
-
-    std::string getCommandName() const override
-    {
-        
-        return "print";
-    }
-
-    void handle(const std::vector<std::string>& parameters) const override
-    {
-        for(auto& p : parameters)
-            std::cout << p << " ";
-        std::cout<< std::endl;
-    }
-};
-
-struct LoadNewDictionary : CommandHandler
+struct NewHashFile : CommandHandler
 {
 public:
     std::string getCommandName() const override
     {
-        return "LoadNewDictionary";
+        return "newHashFile";
     }
 
     void handle(const std::vector<std::string> &parameters) const override
     {
-    // std::ignore = parameters;
+        using namespace std::chrono_literals;
+        // std::ignore = parameters;
         FileOperations file_in(parameters[0], std::fstream::in);
 
+        app.Stop();
+        while(!app.AllEnded())
+            std::this_thread::sleep_for(100ms);
+        app.Clear();
+
         if (file_in.isOpen()) {
-            app.ReadDictionary(file_in.f());
-            std::cout << "Dictionary loaded.\n";
+            
+            app.ReadHashes(file_in.f());
+            std::cout << "New hashes file loaded.\n";
 
         } else {
             std::cout << "Can't open file." << std::endl;

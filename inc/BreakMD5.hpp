@@ -12,6 +12,7 @@
 #include <locale>
 #include <algorithm>
 #include <cctype>
+#include <chrono>
 #include <shared_mutex>
 #include <condition_variable>
 #include <OtherStructures/FileOperations.hpp>
@@ -32,6 +33,7 @@ private:
     std::list<std::string> m_hashes;
     std::vector<std::pair<std::string, std::string>> m_found;
     std::atomic_bool m_bFinished;
+    std::atomic<size_t> m_started;
     std::atomic_bool m_bSIGHUP;
     mutable mutex_type m_Mutex;
     std::condition_variable_any m_foundCv;
@@ -47,12 +49,14 @@ private:
 
 
 public:
-
-    BreakMD5() : m_bFinished(false), m_bSIGHUP(false) {}
+    BreakMD5() : m_bFinished(false), m_started(0), m_bSIGHUP(false) {}
 
     void ReadDictionary(std::fstream & strm)
     {
         std::string line;
+
+        if (!m_dictionary.empty())
+            m_dictionary.clear();
 
         while (!strm.eof() && strm.good())
         {
@@ -64,6 +68,9 @@ public:
     void ReadHashes(std::fstream &strm)
     {
         std::string line;
+
+        if(!m_hashes.empty())
+            m_hashes.clear();
 
         while (!strm.eof() && strm.good())
         {
@@ -119,7 +126,9 @@ public:
         std::string hash;
         std::string modification;
 
-        while(!m_bFinished && !m_hashes.empty())
+        m_started++;
+
+        while(!m_bFinished || !m_hashes.empty())
         {
             for (auto d : m_dictionary)
             {
@@ -128,18 +137,16 @@ public:
                 hash.assign(md5(d));
 
                 {
-                    auto rlock = lock_for_reading(); //make read protection when iterating on hash vector 
+                    auto wlock = lock_for_writing();
                     auto h = m_hashes.begin();
                     while (h != m_hashes.end())
                     {
                         {
                             if ((*h).compare(hash) == 0) // check if password is found
                             {
-                                rlock.unlock();
-                                auto wlock = lock_for_writing(); //wait until all read operations on hash vector ends to dont corupt other iterators
                                 m_found.push_back(std::make_pair(*h, d));
-                                h = m_hashes.erase(h); //now pointing to the next element
-                                wlock.unlock(); // better performance (?)
+                                m_hashes.erase(h); //now pointing to the next element
+                                h = m_hashes.begin();
                                 m_foundCv.notify_one();
                             }
                             else
@@ -152,6 +159,8 @@ public:
             }
             AdditionalCharacterModification(modification);
         }
+
+        m_started--;
     }
 
     void TwoWordProducer(void (*ModifyWordOne)(std::string &), void (*ModifyWordTwo)(std::string &), std::string (*AdditionalCharacters)(const std::string &, const std::string &, const std::string &), void (*AdditionalCharacterModification)(std::string &))
@@ -160,7 +169,9 @@ public:
         std::string modification;
         std::string d;
 
-        while (!m_bFinished && !m_hashes.empty())
+        m_started++;
+
+        while (!m_bFinished || !m_hashes.empty())
         {
             for (auto d1 : m_dictionary)
             {
@@ -171,18 +182,15 @@ public:
                     d = AdditionalCharacters(d1, d2, modification);
                     hash.assign(md5(d));
                     {
-                        auto rlock = lock_for_reading(); // make read protection when iterating on hash vector
+                        auto wlock = lock_for_writing(); // make read protection when iterating on hash vector
                         auto h = m_hashes.begin();
                         while (h != m_hashes.end())
                         {
                             {
                                 if ((*h).compare(hash) == 0) // check if password is found
                                 {
-                                    rlock.unlock();
-                                    auto wlock = lock_for_writing(); // wait until all read operations on hash vector ends to dont corupt other iterators
                                     m_found.push_back(std::make_pair(*h, d));
                                     h = m_hashes.erase(h); // now pointing to the next element
-                                    wlock.unlock();        // better performance (?)
                                     m_foundCv.notify_one();
                                 }
                                 else
@@ -196,10 +204,14 @@ public:
             }
             AdditionalCharacterModification(modification);
         }
+
+        m_started--;
     }
 
     void Consumer()
     {
+        m_started++;
+
         size_t i = 0;
         do
         {
@@ -226,17 +238,20 @@ public:
                 m_bFinished.store(true);
 
         } while (!m_bFinished);
-    }
 
-    void Console()
-    {
-
+        m_started--;
     }
 
     void SignalSIGHUP()
     {
         m_bSIGHUP = true;
-        m_foundCv.notify_one();
+        if(m_started)
+            m_foundCv.notify_one();
+        else
+        {
+            std::cout << "Consumer thread is not running." << std::endl;
+            m_bSIGHUP = false;
+        }
     }
 
     void Stop()
@@ -244,9 +259,20 @@ public:
         m_bFinished.store(true);
     }
 
-    bool IsFinished()
+    bool AllEnded()
     {
-        return m_bFinished.load();
+        if (m_started.load() > 0)
+            return false;
+        return true;
+    }
+
+    void Clear()
+    {
+        if(AllEnded())
+        {
+            m_found.clear();
+            m_bFinished.store(false);
+        }
     }
 
 };

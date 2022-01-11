@@ -18,7 +18,9 @@ class FileOperations
 
         FileOperations(const std::string &filepath, std::ios_base::openmode mode) : m_filepath(filepath), m_mode(mode)
         {
-            std::filesystem::create_directories(m_filepath.substr(0, m_filepath.find_last_of('/')));
+            
+            if(m_mode == std::ios_base::out)
+                std::filesystem::create_directories(m_filepath.substr(0, m_filepath.find_last_of('/')));
             m_fs.open(m_filepath, m_mode);
         }
 
