@@ -9,10 +9,9 @@
 #include <csignal>
 #include <chrono>
 #include <signal.h>
-
 #include <utility>
 
-#include "OtherStructures/FileOperations.hpp"
+#include "FileOperations.hpp"
 #include "BreakMD5.hpp"
 /**
  * USAGE: ./BreakMD5 PathToDictionary PathToHashes
@@ -43,6 +42,9 @@ void makeThreads()
     producer_threads.push_back(std::thread(&BreakMD5::TwoWordProducer, &app, FirstToUppercase, AllToLowercase, AddStringsFront, DigitsModification));
     producer_threads.push_back(std::thread(&BreakMD5::TwoWordProducer, &app, FirstToUppercase, AllToLowercase, AddStringsMiddle, DigitsModification));
     producer_threads.push_back(std::thread(&BreakMD5::TwoWordProducer, &app, FirstToUppercase, AllToLowercase, AddStringsBack, DigitsModification));
+    producer_threads.push_back(std::thread(&BreakMD5::TwoWordProducer, &app, AllToUppercase, AllToLowercase, AddStringsFront, DigitsModification));
+    producer_threads.push_back(std::thread(&BreakMD5::TwoWordProducer, &app, AllToUppercase, AllToLowercase, AddStringsMiddle, DigitsModification));
+    producer_threads.push_back(std::thread(&BreakMD5::TwoWordProducer, &app, AllToUppercase, AllToLowercase, AddStringsBack, DigitsModification));
 
     // CONSUMER
     std::thread consumer(&BreakMD5::Consumer, &app);
@@ -102,7 +104,7 @@ int main(int argc, char **argv)
         }
         else
         {
-            std::cout << "Can't open this file." << std::endl;
+            std::cout << "Can't open this file '" << line << "'" << std::endl;
         }
     }
 
